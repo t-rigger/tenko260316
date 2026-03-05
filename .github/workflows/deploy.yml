@@ -1,0 +1,24 @@
+name: Firebase Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install root dependencies
+        run: npm install
+
+      - name: Install functions dependencies
+        run: cd functions && npm install
+
+      - name: Deploy to Firebase
+        run: npx firebase deploy --only hosting,functions --token "${{ secrets.FIREBASE_TOKEN }}" --project "${{ secrets.FIREBASE_PROJECT_ID }}"
