@@ -21,11 +21,11 @@
     "rewrites": [
       {
         "source": "/api/**",
-        "function": "server"
+        "function": "app"
       },
       {
         "source": "/",
-        "function": "server"
+        "function": "app"
       }
     ]
   }

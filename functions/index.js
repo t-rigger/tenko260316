@@ -36,7 +36,7 @@ function parseCookies(cookieHeader) {
     );
 }
 
-exports.server = functions.https.onRequest(async (req, res) => {
+exports.app = functions.https.onRequest(async (req, res) => {
     // リクエストのURLパスを取得
     const url = new URL(req.url, `https://${req.headers.host}`);
     const pathname = url.pathname;
