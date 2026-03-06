@@ -29,8 +29,8 @@ jobs:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: 'projects/1061187886930/locations/global/workloadIdentityPools/gh-pool-1/providers/gh-provider-1'
-          service_account: 'github-actions@tenko-489302.iam.gserviceaccount.com'
+          workload_identity_provider: 'projects/728729314722/locations/global/workloadIdentityPools/gh-pool-1/providers/gh-provider-1'
+          service_account: 'github-actions@asato-tenko-system.iam.gserviceaccount.com'
 
       - name: Deploy to Firebase
-        run: firebase deploy --only hosting,functions --project "tenko-489302"
+        run: firebase deploy --only hosting,functions --project "asato-tenko-system"
