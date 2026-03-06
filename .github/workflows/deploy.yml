@@ -28,5 +28,13 @@ jobs:
         with:
           credentials_json: '${{ secrets.GCP_SA_KEY }}'
 
+      - name: Create .env file for functions environment variables
+        run: |
+          echo "SESSION_SECRET=${{ secrets.SESSION_SECRET }}" > functions/.env
+          echo "ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}" >> functions/.env
+          echo "ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}" >> functions/.env
+          echo "GAS_API_URL=${{ secrets.GAS_API_URL }}" >> functions/.env
+          echo "GAS_API_KEY=${{ secrets.GAS_API_KEY }}" >> functions/.env
+
       - name: Deploy to Firebase
         run: firebase deploy --only hosting,functions --project "${{ secrets.FIREBASE_PROJECT_ID }}" --force
