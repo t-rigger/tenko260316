@@ -1,10 +1,7 @@
-const { onRequest } = require("firebase-functions/v2/https");
-const { setGlobalOptions } = require("firebase-functions/v2");
+const functions = require("firebase-functions");
 const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
-
-setGlobalOptions({ region: "asia-northeast1" }); // Japan region
 
 // セッショントークンの署名作成
 function createSessionToken(sessionId, secret) {
@@ -39,7 +36,7 @@ function parseCookies(cookieHeader) {
     );
 }
 
-exports.api = onRequest(async (req, res) => {
+exports.api = functions.https.onRequest(async (req, res) => {
     // リクエストのURLパスを取得
     const url = new URL(req.url, `https://${req.headers.host}`);
     const pathname = url.pathname;
