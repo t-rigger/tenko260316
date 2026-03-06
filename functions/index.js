@@ -50,7 +50,7 @@ exports.app = functions.https.onRequest(async (req, res) => {
 
     // セッションチェック
     const cookies = parseCookies(req.headers.cookie);
-    const sessionToken = cookies['session_token'];
+    const sessionToken = cookies['__session'];
     let isAuthenticated = false;
     if (sessionToken && verifySessionToken(sessionToken, sessionSecret)) {
         isAuthenticated = true;
@@ -84,7 +84,7 @@ exports.app = functions.https.onRequest(async (req, res) => {
             const sessionId = crypto.randomUUID();
             const token = createSessionToken(sessionId, sessionSecret);
             // HttpOnly, SecureでCookieをセット
-            res.setHeader('Set-Cookie', `session_token=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${60 * 60 * 24 * 7}`);
+            res.setHeader('Set-Cookie', `__session=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${60 * 60 * 24 * 7}`);
             res.status(200).json({ status: 'success' });
         } else {
             res.status(401).json({ status: 'error', message: 'メールアドレスまたはパスワードが間違っています。' });
@@ -95,7 +95,7 @@ exports.app = functions.https.onRequest(async (req, res) => {
     // 3. ログアウトAPI
     if (pathname === '/api/logout') {
         // Cookieを無効化
-        res.setHeader('Set-Cookie', 'session_token=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0');
+        res.setHeader('Set-Cookie', '__session=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0');
         res.status(200).json({ status: 'success' });
         return;
     }
