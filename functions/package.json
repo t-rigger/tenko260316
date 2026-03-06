@@ -2,7 +2,7 @@
     "name": "tenko-functions",
     "description": "Tenko System Firebase Functions",
     "engines": {
-        "node": "18"
+        "node": "20"
     },
     "main": "index.js",
     "dependencies": {
