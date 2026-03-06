@@ -7,6 +7,9 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
 
@@ -26,7 +29,8 @@ jobs:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+          workload_identity_provider: 'projects/1061187886930/locations/global/workloadIdentityPools/gh-pool-1/providers/gh-provider-1'
+          service_account: 'github-actions@tenko-489302.iam.gserviceaccount.com'
 
       - name: Deploy to Firebase
-        run: firebase deploy --only hosting,functions --project "${{ secrets.FIREBASE_PROJECT_ID }}"
+        run: firebase deploy --only hosting,functions --project "tenko-489302"
