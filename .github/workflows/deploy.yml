@@ -33,4 +33,4 @@ jobs:
           service_account: 'github-actions@asato-tenko-system.iam.gserviceaccount.com'
 
       - name: Deploy to Firebase
-        run: firebase deploy --only hosting,functions --project "asato-tenko-system"
+        run: firebase deploy --only hosting,functions --project "asato-tenko-system" --debug
