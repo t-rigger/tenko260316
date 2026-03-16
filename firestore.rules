@@ -1,0 +1,15 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // configコレクション: ログイン済みユーザーのみ読み取り可、書き込みは一切禁止
+    match /config/{document=**} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // その他のコレクション: すべてのアクセスを拒否
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

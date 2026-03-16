@@ -71,6 +71,11 @@
       background: #764ba2;
     }
 
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+
     .error {
       background: #fee2e2;
       color: #dc2626;
@@ -96,35 +101,66 @@
         <label for="password">パスワード</label>
         <input type="password" id="password" name="password" required>
       </div>
-      <button type="submit">ログイン</button>
+      <button type="submit" id="login-btn">ログイン</button>
     </form>
   </div>
 
-  <script>
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js';
+    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js';
+
+    let auth;
+
+    async function init() {
+      try {
+        // Firebase Hosting特有の機能：自動でプロジェクト設定を読み込む
+        const configResponse = await fetch('/__/firebase/init.json');
+        const firebaseConfig = await configResponse.json();
+
+        const app = initializeApp(firebaseConfig);
+        auth = getAuth(app);
+
+        // すでにログイン済みならメイン画面へ
+        onAuthStateChanged(auth, (user) => {
+          if (user) {
+            window.location.href = '/index.html';
+          }
+        });
+      } catch (error) {
+        console.error("Firebase初期化エラー:", error);
+      }
+    }
+
+    init();
+
+    // ログインフォームの送信処理
     document.getElementById('login-form').addEventListener('submit', async (e) => {
       e.preventDefault();
+      if (!auth) return;
+
       const email = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value.trim();
       const errorMsg = document.getElementById('error-msg');
+      const loginBtn = document.getElementById('login-btn');
+
+      errorMsg.style.display = 'none';
+      loginBtn.disabled = true;
+      loginBtn.textContent = 'ログイン中...';
 
       try {
-        const response = await fetch('/api/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password })
-        });
-
-        if (response.ok) {
-          window.location.href = '/';
-        } else {
-          const data = await response.json();
-          const detail = data.debug ? ` (${data.debug})` : '';
-          errorMsg.textContent = (data.message || 'ログインに失敗しました。') + detail;
-          errorMsg.style.display = 'block';
-        }
+        await signInWithEmailAndPassword(auth, email, password);
+        // 成功時のリダイレクトは onAuthStateChanged が処理
       } catch (error) {
-        errorMsg.textContent = 'エラーが発生しました。';
+        let message = 'ログインに失敗しました。';
+        if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+          message = 'メールアドレスまたはパスワードが間違っています。';
+        } else if (error.code === 'auth/too-many-requests') {
+          message = 'ログイン試行回数が多すぎます。時間をおいて再試行してください。';
+        }
+        errorMsg.textContent = message;
         errorMsg.style.display = 'block';
+        loginBtn.disabled = false;
+        loginBtn.textContent = 'ログイン';
       }
     });
   </script>

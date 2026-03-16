@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>友だち追加 - 点呼システム</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .container {
+            text-align: center;
+            background: white;
+            padding: 3rem;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            width: 100%;
+            position: relative;
+            display: none;
+            /* 初期状態は非表示（ログイン確認後に表示） */
+        }
+
+        .logout-btn {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            padding: 0.5rem 1rem;
+            background: #eee;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 1rem;
+            font-size: 2rem;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 2rem;
+        }
+
+        #qr-container {
+            margin: 2rem 0;
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #status-message {
+            color: #e74c3c;
+            font-weight: bold;
+            font-size: 1.2rem;
+            margin-top: 1rem;
+            white-space: pre-line;
+        }
+
+        .loading {
+            color: #667eea;
+            font-size: 1.1rem;
+        }
+
+        .admin-link {
+            margin-top: 2rem;
+            text-align: center;
+        }
+
+        .admin-link a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+
+        .admin-link a:hover {
+            background: #667eea;
+            color: white;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 認証チェック中の画面 -->
+    <div id="loading-screen" style="color: white; font-size: 1.2rem;">
+        認証情報を確認しています...
+    </div>
+
+    <!-- メインコンテンツ -->
+    <div class="container" id="main-content">
+        <button class="logout-btn" id="logout-btn">ログアウト</button>
+        <h1>📱 LINE友だち追加</h1>
+        <p class="subtitle">下記のQRコードを読み取ってください</p>
+
+        <div id="qr-container">
+            <p class="loading">読み込み中...</p>
+        </div>
+
+        <p id="status-message"></p>
+
+        <div class="admin-link">
+            <a id="shift-input-link"
+                href="https://docs.google.com/spreadsheets/d/1WqOsJmpEYnbvMMZAipC_I4ErfMinJKws843xB6G3AIo/"
+                target="_blank">シフト入力はこちら</a>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js';
+        import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js';
+        import { getFirestore, doc, getDoc } from 'https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js';
+
+        let auth, db;
+        let gasConfig = null;
+        let updateInterval = null;
+
+        async function init() {
+            try {
+                // Firebase Hosting固有の自動設定読み込み
+                const configResponse = await fetch('/__/firebase/init.json');
+                const firebaseConfig = await configResponse.json();
+
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+
+                // ログイン状態の確認
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        // ログイン成功: メイン画面を表示
+                        document.getElementById('loading-screen').style.display = 'none';
+                        document.getElementById('main-content').style.display = 'block';
+
+                        // 初回起動処理
+                        await fetchGasConfigAndRender();
+
+                        // 5秒ごとの定期更新設定
+                        if (!updateInterval) {
+                            updateInterval = setInterval(loadOptimalQrCode, 5000);
+                        }
+                    } else {
+                        // 未ログイン: login.html にリダイレクト
+                        window.location.href = '/login.html';
+                    }
+                });
+
+                // ログアウト処理
+                document.getElementById('logout-btn').addEventListener('click', async () => {
+                    await signOut(auth);
+                });
+
+            } catch (error) {
+                console.error("Firebase初期化エラー:", error);
+                document.getElementById('loading-screen').innerText = 'システムエラーが発生しました。';
+            }
+        }
+
+        // Firestoreの金庫からGASのURLを取得する
+        async function fetchGasConfigAndRender() {
+            const statusMessage = document.getElementById('status-message');
+            try {
+                // 「config」コレクションの「gas」ドキュメントにアクセス
+                // （※未ログインの人がここを通ろうとするとFirestoreが弾く）
+                const docRef = doc(db, "config", "gas");
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists()) {
+                    gasConfig = docSnap.data();
+                    await loadOptimalQrCode(); // すぐにQRを描画
+                } else {
+                    statusMessage.innerText = 'エラー: 管理者によりGASのURLが設定されていません。';
+                    document.getElementById('qr-container').innerHTML = '';
+                }
+            } catch (error) {
+                console.error("Firestore取得エラー:", error);
+                statusMessage.innerText = 'エラー: 設定の読み込みに失敗しました。アカウントの権限を確認してください。';
+                document.getElementById('qr-container').innerHTML = '';
+            }
+        }
+
+        async function loadOptimalQrCode() {
+            if (!gasConfig || !gasConfig.gasApiUrl) return;
+
+            const qrContainer = document.getElementById('qr-container');
+            const statusMessage = document.getElementById('status-message');
+
+            // API_KEYが未設定の場合を考慮
+            const apiKeyParam = gasConfig.gasApiKey ? `&api_key=${gasConfig.gasApiKey}` : '';
+
+            try {
+                const response = await fetch(`${gasConfig.gasApiUrl}?action=get_active_qr${apiKeyParam}`);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                qrContainer.innerHTML = '';
+
+                if (data.isFull) {
+                    qrContainer.innerHTML = '<p style="font-size:3rem;">⚠️</p>';
+                    statusMessage.innerText = '友達登録人数の上限に達しました。\nシステム開発担当者にご連絡ください。';
+                    updateSheetLink(data.sheetUrl);
+                } else if (data.qrUrl) {
+                    new QRCode(qrContainer, {
+                        text: data.qrUrl,
+                        width: 256,
+                        height: 256,
+                        colorDark: "#000000",
+                        colorLight: "#ffffff",
+                        correctLevel: QRCode.CorrectLevel ? QRCode.CorrectLevel.H : 1
+                    });
+                    statusMessage.innerText = '';
+                    updateSheetLink(data.sheetUrl);
+                } else {
+                    statusMessage.innerText = '有効なQRコードデータがありません。';
+                }
+            } catch (error) {
+                statusMessage.innerText = 'QRコードの取得に失敗しました。再読み込みまたはお待ちください。';
+            }
+        }
+
+        function updateSheetLink(sheetUrl) {
+            if (sheetUrl) {
+                const shiftLink = document.getElementById('shift-input-link');
+                if (shiftLink && shiftLink.href !== sheetUrl) {
+                    shiftLink.href = sheetUrl;
+                }
+            }
+        }
+
+        // 実行開始
+        init();
+
+    </script>
+</body>
+
+</html>
