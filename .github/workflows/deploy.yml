@@ -20,4 +20,4 @@ jobs:
           credentials_json: '${{ secrets.GCP_SA_KEY }}'
 
       - name: Deploy to Firebase (Hosting only)
-        run: firebase deploy --only hosting --project corp-qr-attendance --force
+        run: firebase deploy --only hosting --project "${{ secrets.FIREBASE_PROJECT_ID }}" --force
